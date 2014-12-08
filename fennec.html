@@ -200,7 +200,7 @@
                 line. Really it is a pointless feature left in for legacy code
                 that actually used it.
             </dd>
-   
+
             <dt>parallel</dt>
             <dd>
                 How many test blocks can be run in parallel.
@@ -226,13 +226,13 @@
                     done_testing();
                 </script>
             </dd>
-   
+
             <dt>collector_class</dt>
             <dd>
                 Specify which collector to use. Defaults to a Test::Builder
                 based collector that uses temp files to funnel tests from
                 child procs to the parent.
-                <p> 
+                <p>
                 You generally won't need to specify this, unless you use a
                 test infrastructure that is neither TAP nor Test::Builder
                 based.
@@ -241,7 +241,7 @@
                     use Fennec collector_class => 'My::Collector';
                 </script>
             </dd>
-   
+
             <dt>runner_class</dt>
             <dd>
                 Specify the runner class. You probably don't need this.
@@ -250,7 +250,7 @@
                     use Fennec runner_class => 'My::Collector';
                 </script>
             </dd>
-   
+
             <dt>runner_params</dt>
             <dd>
                 Lets you specify arguments used when Fennec::Runner is
@@ -263,7 +263,7 @@
                     );
                 </script>
             </dd>
-   
+
             <dt>skip_without</dt>
             <dd>
                 Tell Fennec to skip the test file if any of the specified
@@ -276,7 +276,7 @@
                 This is useful if you have a test for optional functionality
                 that only works if another module is installed.
             </dd>
-   
+
             <dt>test_sort</dt>
             <dd>
                 <ul>
@@ -285,7 +285,7 @@
                     <li>ordered</li>
                     <li>sub { ... }</li>
                 </ul>
- 
+
                 <br />
                 Examples:
                 <script class="code">
@@ -306,7 +306,7 @@
                     };
                 </script>
             </dd>
-   
+
             <dt>with_tests</dt>
             <dd>
                 Load these modules that have reusable tests. Reusable tests are tests that are
@@ -344,21 +344,21 @@
 
         <script class="code">
             use base 'Fennec::Declare';
-             
+
             sub defaults {
                 my $class = shift;
                 my %params = $class->SUPER::defaults;
-             
+
                 # Add a new autoloading utility with import arguments.
                 push @{ $params->{utils} } => 'My::Util';
                 $params->{'My::Util'} = [ 'util' => 'args' ];
-             
+
                 # Default number of concurrent procs for the test to use.
                 $params->{parallel} = 3;
-             
+
                 return %params;
             }
-             
+
             1;
         </script>
     </dd>
