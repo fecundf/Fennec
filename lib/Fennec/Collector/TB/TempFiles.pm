@@ -1,6 +1,7 @@
 package Fennec::Collector::TB::TempFiles;
 use strict;
 use warnings;
+use Carp 'cluck';
 
 use base 'Fennec::Collector::TB';
 
@@ -73,6 +74,7 @@ sub collect {
     while ( my $file = readdir $handle ) {
         my $path = $self->tempdir . "/$file";
         next unless -f $path;
+	cluck "collect: checking $path for readiness?\n";
         next unless $path =~ m/\.ready$/;
         open( my $fh, '<', $path ) || die $!;
 
@@ -80,19 +82,28 @@ sub collect {
             chomp($line);
             next unless $line;
             my ( $handle, $source, $part ) = ( $line =~ m/^(\w+)\|([^\|]+)\|(.*)$/g );
-            warn "Bad Input: '$line'\n" unless $handle && $source;
+            warn "collect: Bad Input: '$line'\n" unless $handle && $source;
 
             $self->render( $handle, $part );
         }
 
         close($fh);
 
-        rename( $path => "$path.done" ) || die "Could not rename file: $!";
+        if (rename $path => "$path.done" ) {
+	    # Does filesystems wait to reflect the rename
+	    my $max_wait=15;
+	    while (!-f "$path.done" && $max_wait--) {
+		warn "collect: Waiting for $path.done to rename";
+		sleep 1;
+	    }
+	}
+	else { die "Could not rename file: $!" }
     }
 }
 
 sub finish {
     my $self = shift;
+    warn "finish: pid $$, \$self->_pid=".$self->_pid.", we handle=".$self->handles->{$$}."\n";
     return unless $self->_pid == $$;
 
     $self->ready() if $self->handles->{$$};
@@ -100,30 +111,43 @@ sub finish {
     $self->collect;
     $self->SUPER::finish();
 
-    my $handle = $self->handles->{tempdir};
-    rewinddir $handle;
-
+    #    my $handle = $self->handles->{tempdir};
+    opendir my $handle, $self->tempdir;
+#    rewinddir $handle;
+    warn "finish: dir=". $self->tempdir;
     die "($$) Not all files were collected?!"
-        if grep { m/^\d+(\.ready)?$/ } readdir $handle;
+        if grep { m/^-?\d+(\.ready)?$/ } readdir $handle;
 
     if ( !$ENV{FENNEC_DEBUG} ) {
         rewinddir $handle;
-        while ( my $file = readdir $handle ) {
+        while ( my $file = readdir $handle ) { warn "finish: do we del $file\n";
             next unless $file =~ m/\.done$/;
-            unlink( $self->tempdir . '/' . $file ) || warn "error deleting $file: $!";
+            unlink( $self->tempdir . '/' . $file ) || warn "finish: error deleting $file: $!";
         }
         close($handle);
-        rmdir( $self->tempdir ) || warn "Could not cleanup temp dir: $!";
+        rmdir( $self->tempdir ) || warn "finish: Could not cleanup temp dir (". $self->tempdir ."): $!";
     }
 }
 
 sub ready {
     my $self = shift;
-    warn "No Temp Dir! $$" unless $self->tempdir;
+    warn "ready: No Temp Dir! $$" unless $self->tempdir;
     my $path = $self->tempdir . "/$$";
+    warn "ready: path=$path, exists=".(-e $path)."\n";
     return unless -e $path;
-    close( $self->handles->{$$} ) || warn "Could not close file $path - $!";
-    rename( $path => "$path.ready" ) || warn "Could not rename file $path - $!";
+    close( $self->handles->{$$} ) || warn "ready: Could not close file $path - $!";
+    if (rename $path => "$path.ready" ) {
+      warn "ready: Renamed to $path.ready OK\n";
+      # does filesystem reflect the rename
+      my $max_wait=15;
+      while (!-f "$path.ready" && $max_wait--) {
+	warn "ready: Waiting for $path.ready to rename";
+	sleep 1;
+      }
+    }
+    else {
+	warn "ready: Could not rename file $path - $!";
+    }
 }
 
 sub end_pid { }
